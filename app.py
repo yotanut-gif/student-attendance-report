@@ -16,7 +16,8 @@ ATTENDANCE_SHEET_NAME = "Attendance_Log"
 
 REPORT_STATUSES = ["ขาด", "ลาป่วย", "ลากิจ", "มาสาย", "โดดเรียน"]
 EXCLUDED_STATUSES = ["มา"]
-PERIOD_OPTIONS = ["ทั้งหมด", "1", "2", "3", "4", "5", "6", "7", "8"]
+LEVEL_OPTIONS = ["ทั้งหมด", "ม.1", "ม.2", "ม.3", "ม.4", "ม.5", "ม.6"]
+PERIOD_OPTIONS = ["ทั้งหมด", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 PUBLIC_CSV_URL = (
     "https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq"
@@ -291,38 +292,23 @@ def build_excel(data: pd.DataFrame) -> bytes:
     return output.getvalue()
 
 
-def get_level_options(data: pd.DataFrame, selected_date: date) -> list[str]:
-    """Build level choices from records on the selected date."""
-    date_data = data[data["date"] == selected_date].copy()
-    levels = sorted(
-        value
-        for value in date_data["level"].dropna().astype(str).str.strip().unique().tolist()
-        if value
-    )
-    return ["ทั้งหมด", *levels]
+def get_classroom_options(selected_level: str) -> list[str]:
+    """Build fixed classroom choices for the selected level."""
+    if selected_level == "ทั้งหมด":
+        classrooms = [
+            f"ม.{level}/{room}"
+            for level in range(1, 7)
+            for room in range(1, 15 if level == 1 else 14)
+        ]
+        return ["ทั้งหมด", *classrooms]
 
-
-def get_classroom_options(
-    data: pd.DataFrame,
-    selected_date: date,
-    selected_level: str,
-) -> list[str]:
-    """Build classroom choices from records on the selected date and level."""
-    option_data = data[data["date"] == selected_date].copy()
-    if selected_level != "ทั้งหมด":
-        option_data = option_data[
-            option_data["level"].astype(str).str.strip() == selected_level
-        ].copy()
-
-    classrooms = sorted(
-        value
-        for value in option_data["classroom"].dropna().astype(str).str.strip().unique().tolist()
-        if value
-    )
+    level_number = selected_level.replace("ม.", "")
+    max_room = 14 if selected_level == "ม.1" else 13
+    classrooms = [f"ม.{level_number}/{room}" for room in range(1, max_room + 1)]
     return ["ทั้งหมด", *classrooms]
 
 
-def render_sidebar(data: pd.DataFrame) -> None:
+def render_sidebar() -> None:
     """Render filter controls and refresh actions."""
     st.sidebar.header("ตัวกรองรายงาน")
 
@@ -330,9 +316,8 @@ def render_sidebar(data: pd.DataFrame) -> None:
         st.session_state.filters = []
 
     selected_date = st.sidebar.date_input("วันที่", value=date.today())
-    level_options = get_level_options(data, selected_date)
-    selected_level = st.sidebar.selectbox("ระดับชั้น", level_options)
-    classroom_options = get_classroom_options(data, selected_date, selected_level)
+    selected_level = st.sidebar.selectbox("ระดับชั้น", LEVEL_OPTIONS)
+    classroom_options = get_classroom_options(selected_level)
     selected_classroom = st.sidebar.selectbox("ห้องเรียน", classroom_options)
     selected_period = st.sidebar.selectbox("คาบเรียน", PERIOD_OPTIONS)
 
@@ -475,7 +460,7 @@ def main() -> None:
         st.exception(exc)
         return
 
-    render_sidebar(prepared_data)
+    render_sidebar()
     render_selected_conditions()
 
     if not st.session_state.filters:
