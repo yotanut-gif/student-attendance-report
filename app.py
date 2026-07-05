@@ -161,6 +161,7 @@ def prepare_data(
         left_on=["student_id", "classroom"],
         right_on=["เลขประจำตัว", "ห้องเรียน"],
     )
+    merged = merged.drop(columns=["ห้องเรียน"])
 
     merged = merged[merged["status"].isin(REPORT_STATUSES)].copy()
     merged = merged[~merged["status"].isin(EXCLUDED_STATUSES)].copy()
