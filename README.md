@@ -13,7 +13,23 @@ attendance_app/
     └── secrets.toml.example
 ```
 
-## การเตรียม Google Cloud Project
+## วิธีใช้งานแบบง่าย ไม่ต้องใช้ Google Cloud
+
+หาก Google Sheet สามารถเปิดให้อ่านแบบ public ได้ ให้ใช้วิธีนี้ได้เลย:
+
+1. เปิด Google Sheet ต้นทาง
+2. กด Share
+3. ตั้งค่า General access เป็น `Anyone with the link`
+4. ตั้งสิทธิ์เป็น `Viewer`
+5. รันแอปได้ทันทีโดยไม่ต้องสร้าง `.streamlit/secrets.toml`
+
+แอปจะอ่านชีต `Students` และ `Attendance_Log` ผ่าน public CSV endpoint แบบ read only
+
+## วิธีใช้งานแบบ Service Account
+
+ใช้วิธีนี้เมื่อไม่ต้องการเปิด Google Sheet เป็น public หรือใช้กับระบบจริงที่ต้องจำกัดสิทธิ์
+
+### การเตรียม Google Cloud Project
 
 1. ไปที่ Google Cloud Console: https://console.cloud.google.com/
 2. สร้าง Project ใหม่ หรือเลือก Project ที่มีอยู่แล้ว
@@ -25,7 +41,7 @@ attendance_app/
 8. กด Add key > Create new key
 9. เลือก JSON แล้วดาวน์โหลด credential
 
-## การตั้งค่า secrets.toml
+### การตั้งค่า secrets.toml
 
 1. คัดลอกไฟล์ `.streamlit/secrets.toml.example`
 2. เปลี่ยนชื่อเป็น `.streamlit/secrets.toml`
@@ -48,7 +64,7 @@ auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
 client_x509_cert_url = "xxxx"
 ```
 
-## การแชร์ Google Sheet
+### การแชร์ Google Sheet
 
 1. เปิด Google Sheet ต้นทาง
 2. กด Share

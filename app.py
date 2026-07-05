@@ -18,6 +18,10 @@ REPORT_STATUSES = ["ขาด", "ลาป่วย", "ลากิจ", "มา
 EXCLUDED_STATUSES = ["มา"]
 PERIOD_OPTIONS = ["ทั้งหมด", "1", "2", "3", "4", "5", "6", "7", "8"]
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+PUBLIC_CSV_URL = (
+    "https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq"
+    "?tqx=out:csv&sheet={sheet_name}"
+)
 
 STUDENT_REQUIRED_COLUMNS = ["ห้องเรียน", "เลขที่", "เลขประจำตัว", "ชื่อ-สกุล"]
 ATTENDANCE_REQUIRED_COLUMNS = [
@@ -76,11 +80,29 @@ def validate_columns(df: pd.DataFrame, required: list[str], sheet_name: str) -> 
 
 @st.cache_data(ttl=300, show_spinner="กำลังโหลดข้อมูลจาก Google Sheets...")
 def load_google_sheet() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Read Students and Attendance_Log sheets as pandas DataFrames."""
+    """Read Students and Attendance_Log sheets as pandas DataFrames.
+
+    If service account secrets exist, the app uses them. Otherwise it reads from
+    the public CSV endpoint, which works when the Google Sheet is shared as
+    Anyone with the link can view.
+    """
     if "gcp_service_account" not in st.secrets:
-        raise SheetConfigurationError(
-            "ไม่พบค่า [gcp_service_account] ใน .streamlit/secrets.toml"
+        students_url = PUBLIC_CSV_URL.format(
+            sheet_id=SHEET_ID,
+            sheet_name=STUDENT_SHEET_NAME,
         )
+        attendance_url = PUBLIC_CSV_URL.format(
+            sheet_id=SHEET_ID,
+            sheet_name=ATTENDANCE_SHEET_NAME,
+        )
+        try:
+            return pd.read_csv(students_url), pd.read_csv(attendance_url)
+        except Exception as exc:
+            raise SheetConfigurationError(
+                "ไม่พบค่า [gcp_service_account] ใน .streamlit/secrets.toml "
+                "และยังอ่าน Google Sheet แบบ public ไม่ได้ กรุณาแชร์ชีตเป็น "
+                "'ทุกคนที่มีลิงก์ดูได้' หรือใส่ Service Account secrets"
+            ) from exc
 
     credentials = Credentials.from_service_account_info(
         dict(st.secrets["gcp_service_account"]),
