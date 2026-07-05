@@ -181,11 +181,23 @@ def apply_selected_filters(data: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]
 
     for condition in st.session_state.filters:
         selected_date = condition["date"]
+        selected_level = condition.get("level", "ทั้งหมด")
+        selected_classroom = condition.get("classroom", "ทั้งหมด")
         selected_period = condition["period"]
 
         condition_data = data[
             data["date"] == selected_date
         ].copy()
+
+        if selected_level != "ทั้งหมด":
+            condition_data = condition_data[
+                condition_data["level"].astype(str).str.strip() == selected_level
+            ].copy()
+
+        if selected_classroom != "ทั้งหมด":
+            condition_data = condition_data[
+                condition_data["classroom"].astype(str).str.strip() == selected_classroom
+            ].copy()
 
         if selected_period != "ทั้งหมด":
             condition_data = condition_data[
@@ -279,7 +291,38 @@ def build_excel(data: pd.DataFrame) -> bytes:
     return output.getvalue()
 
 
-def render_sidebar() -> None:
+def get_level_options(data: pd.DataFrame, selected_date: date) -> list[str]:
+    """Build level choices from records on the selected date."""
+    date_data = data[data["date"] == selected_date].copy()
+    levels = sorted(
+        value
+        for value in date_data["level"].dropna().astype(str).str.strip().unique().tolist()
+        if value
+    )
+    return ["ทั้งหมด", *levels]
+
+
+def get_classroom_options(
+    data: pd.DataFrame,
+    selected_date: date,
+    selected_level: str,
+) -> list[str]:
+    """Build classroom choices from records on the selected date and level."""
+    option_data = data[data["date"] == selected_date].copy()
+    if selected_level != "ทั้งหมด":
+        option_data = option_data[
+            option_data["level"].astype(str).str.strip() == selected_level
+        ].copy()
+
+    classrooms = sorted(
+        value
+        for value in option_data["classroom"].dropna().astype(str).str.strip().unique().tolist()
+        if value
+    )
+    return ["ทั้งหมด", *classrooms]
+
+
+def render_sidebar(data: pd.DataFrame) -> None:
     """Render filter controls and refresh actions."""
     st.sidebar.header("ตัวกรองรายงาน")
 
@@ -287,12 +330,18 @@ def render_sidebar() -> None:
         st.session_state.filters = []
 
     selected_date = st.sidebar.date_input("วันที่", value=date.today())
+    level_options = get_level_options(data, selected_date)
+    selected_level = st.sidebar.selectbox("ระดับชั้น", level_options)
+    classroom_options = get_classroom_options(data, selected_date, selected_level)
+    selected_classroom = st.sidebar.selectbox("ห้องเรียน", classroom_options)
     selected_period = st.sidebar.selectbox("คาบเรียน", PERIOD_OPTIONS)
 
     if st.sidebar.button("เพิ่มรายการ", type="primary", use_container_width=True):
         st.session_state.filters.append(
             {
                 "date": selected_date,
+                "level": selected_level,
+                "classroom": selected_classroom,
                 "period": selected_period,
             }
         )
@@ -313,13 +362,15 @@ def render_selected_conditions() -> None:
     """Display all selected filter conditions."""
     st.subheader("รายการเงื่อนไขที่เลือก")
     if not st.session_state.filters:
-        st.info("ยังไม่มีรายการ กรุณาเลือกวันที่และคาบ แล้วกดเพิ่มรายการ")
+        st.info("ยังไม่มีรายการ กรุณาเลือกวันที่ ระดับชั้น ห้องเรียน และคาบ แล้วกดเพิ่มรายการ")
         return
 
     conditions = pd.DataFrame(
         [
             {
                 "วันที่": item["date"].strftime("%d/%m/%Y"),
+                "ระดับชั้น": item.get("level", "ทั้งหมด"),
+                "ห้องเรียน": item.get("classroom", "ทั้งหมด"),
                 "คาบ": item["period"],
             }
             for item in st.session_state.filters
@@ -330,12 +381,12 @@ def render_selected_conditions() -> None:
 
 def render_kpis(report: pd.DataFrame) -> None:
     """Render KPI metrics above the report table."""
-    unique_students = report["เลขประจำตัว"].nunique() if not report.empty else 0
-    unique_classrooms = report["ห้องเรียน"].nunique() if not report.empty else 0
-    unique_levels = report["ระดับชั้น"].nunique() if not report.empty else 0
+    unique_students = int(report["เลขประจำตัว"].nunique()) if not report.empty else 0
+    unique_classrooms = int(report["ห้องเรียน"].nunique()) if not report.empty else 0
+    unique_levels = int(report["ระดับชั้น"].nunique()) if not report.empty else 0
 
     metric_values = [
-        ("จำนวนรายการค้นหา", len(st.session_state.filters)),
+        ("จำนวนรายการค้นหา", int(len(st.session_state.filters))),
         ("จำนวนนักเรียนในรายงาน", unique_students),
         ("จำนวนห้องเรียน", unique_classrooms),
         ("จำนวนระดับชั้น", unique_levels),
@@ -361,7 +412,7 @@ def render_kpis(report: pd.DataFrame) -> None:
     for row_start in range(0, len(metric_values), 5):
         columns = st.columns(5)
         for column, (label, value) in zip(columns, metric_values[row_start:row_start + 5]):
-            column.metric(label, value)
+            column.metric(label, int(value))
 
 
 def render_grouped_view(report: pd.DataFrame) -> None:
@@ -413,9 +464,6 @@ def main() -> None:
     )
     st.title("ระบบรายงานขาด ลา มาสาย และโดดเรียนของนักเรียน")
 
-    render_sidebar()
-    render_selected_conditions()
-
     try:
         students_df, attendance_df = load_google_sheet()
         prepared_data = prepare_data(students_df, attendance_df)
@@ -426,6 +474,9 @@ def main() -> None:
         st.error("ไม่สามารถเชื่อมต่อ Google Sheets ได้")
         st.exception(exc)
         return
+
+    render_sidebar(prepared_data)
+    render_selected_conditions()
 
     if not st.session_state.filters:
         return
