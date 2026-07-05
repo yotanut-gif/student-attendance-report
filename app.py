@@ -50,7 +50,6 @@ DISPLAY_COLUMNS = [
     "เลขประจำตัว",
     "ชื่อ-สกุล",
     "สถานะ",
-    "คาบที่บันทึก",
     "หมายเหตุ",
 ]
 
@@ -238,6 +237,9 @@ def to_display_dataframe(data: pd.DataFrame) -> pd.DataFrame:
         lambda value: value.strftime("%d/%m/%Y") if pd.notna(value) else "-"
     )
     report["หมายเหตุ"] = report["note"].replace("", pd.NA).fillna("-")
+    report["เลขที่"] = report["เลขที่"].apply(
+        lambda value: str(int(value)) if pd.notna(value) else "-"
+    )
 
     renamed = report.rename(
         columns={
@@ -249,7 +251,6 @@ def to_display_dataframe(data: pd.DataFrame) -> pd.DataFrame:
             "เลขประจำตัว": "เลขประจำตัว",
             "ชื่อ-สกุล": "ชื่อ-สกุล",
             "status": "สถานะ",
-            "periods": "คาบที่บันทึก",
         }
     )
     return renamed[DISPLAY_COLUMNS]
@@ -416,7 +417,7 @@ def render_grouped_view(report: pd.DataFrame) -> None:
                 for _, row in sorted_room.iterrows():
                     st.write(
                         f"เลขที่ {row['เลขที่']} {row['ชื่อ-สกุล']} "
-                        f"({row['สถานะ']}, คาบ {row['คาบที่บันทึก']})"
+                        f"({row['สถานะ']})"
                     )
 
 
