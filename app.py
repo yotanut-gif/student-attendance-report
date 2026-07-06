@@ -455,6 +455,7 @@ def main() -> None:
     st.set_page_config(
         page_title="ระบบรายงานขาด ลา มาสาย และโดดเรียนของนักเรียน",
         layout="wide",
+        initial_sidebar_state="expanded",
     )
     st.title("ระบบรายงานขาด ลา มาสาย และโดดเรียนของนักเรียน")
 
