@@ -17,6 +17,14 @@ ATTENDANCE_SHEET_NAME = "Attendance_Log"
 REPORT_STATUSES = ["ขาด", "ลาป่วย", "ลากิจ", "มาสาย", "โดดเรียน"]
 EXCLUDED_STATUSES = ["มา"]
 LEVEL_OPTIONS = ["ทั้งหมด", "ม.1", "ม.2", "ม.3", "ม.4", "ม.5", "ม.6"]
+MAX_ROOMS_BY_LEVEL = {
+    "ม.1": 14,
+    "ม.2": 13,
+    "ม.3": 13,
+    "ม.4": 14,
+    "ม.5": 13,
+    "ม.6": 13,
+}
 PERIOD_OPTIONS = ["ทั้งหมด", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 PUBLIC_CSV_URL = (
@@ -298,15 +306,14 @@ def get_classroom_options(selected_level: str) -> list[str]:
     """Build fixed classroom choices for the selected level."""
     if selected_level == "ทั้งหมด":
         classrooms = [
-            f"ม.{level}/{room}"
-            for level in range(1, 7)
-            for room in range(1, 15 if level == 1 else 14)
+            f"{level}/{room}"
+            for level, max_room in MAX_ROOMS_BY_LEVEL.items()
+            for room in range(1, max_room + 1)
         ]
         return ["ทั้งหมด", *classrooms]
 
-    level_number = selected_level.replace("ม.", "")
-    max_room = 14 if selected_level == "ม.1" else 13
-    classrooms = [f"ม.{level_number}/{room}" for room in range(1, max_room + 1)]
+    max_room = MAX_ROOMS_BY_LEVEL[selected_level]
+    classrooms = [f"{selected_level}/{room}" for room in range(1, max_room + 1)]
     return ["ทั้งหมด", *classrooms]
 
 
